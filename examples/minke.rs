@@ -16,7 +16,7 @@ use bullet_lib::{
 };
 use std::{fs, path::Path};
 
-const OUTPUT_DIRECTORY: &str = "checkpoints/minke20/v3";
+const OUTPUT_DIRECTORY: &str = "checkpoints/minke21/v1";
 const BINPACK_PATH: &str = "data/selfgen/interleaved_7-19.vf";
 const N_THREADS: usize = 4;
 const BUFFER_SIZE_MB: usize = 2048;
@@ -44,13 +44,13 @@ const QB: i16 = 64;
 #[rustfmt::skip]
 const BUCKET_LAYOUT: [usize; 32] = [
     0, 0, 1, 1,
-    2, 2, 2, 2,
-    3, 3, 3, 3,
-    3, 3, 3, 3,
-    3, 3, 3, 3,
-    3, 3, 3, 3,
-    3, 3, 3, 3,
-    3, 3, 3, 3,
+    2, 2, 3, 3,
+    4, 4, 4, 4,
+    4, 4, 4, 4,
+    4, 4, 4, 4,
+    5, 5, 5, 5,
+    5, 5, 5, 5,
+    5, 5, 5, 5,
 ];
 const NUM_INPUT_BUCKETS: usize = get_num_buckets(&BUCKET_LAYOUT);
 // const NUM_OUTPUT_BUCKETS: usize = 1;
