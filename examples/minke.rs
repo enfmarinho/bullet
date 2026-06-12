@@ -1,7 +1,7 @@
 use bullet_lib::{
     game::{
         inputs::{get_num_buckets, ChessBucketsMirrored},
-        // outputs::MaterialCount,
+        outputs::MaterialCount,
     },
     nn::{
         optimiser::{AdamW, AdamWParams},
@@ -16,8 +16,8 @@ use bullet_lib::{
 };
 use std::{fs, path::Path};
 
-const OUTPUT_DIRECTORY: &str = "checkpoints/minke24/v1";
-const BINPACK_PATH: &str = "data/selfgen/interleaved_7-22.vf";
+const OUTPUT_DIRECTORY: &str = "checkpoints/minke25/v1";
+const BINPACK_PATH: &str = "data/selfgen/interleaved_7-23.vf";
 const N_THREADS: usize = 4;
 const BUFFER_SIZE_MB: usize = 2048;
 
@@ -53,7 +53,7 @@ const BUCKET_LAYOUT: [usize; 32] = [
     7, 7, 7, 7,
 ];
 const NUM_INPUT_BUCKETS: usize = get_num_buckets(&BUCKET_LAYOUT);
-// const NUM_OUTPUT_BUCKETS: usize = 1;
+const NUM_OUTPUT_BUCKETS: usize = 8;
 
 static SOURCE_CODE: &str = include_str!("minke.rs");
 fn save_config() {
@@ -69,7 +69,7 @@ fn main() {
         .dual_perspective()
         .optimiser(AdamW)
         .inputs(ChessBucketsMirrored::new(BUCKET_LAYOUT))
-        // .output_buckets(MaterialCount::<NUM_OUTPUT_BUCKETS>)
+        .output_buckets(MaterialCount::<NUM_OUTPUT_BUCKETS>)
         .save_format(&[
             // merge in the factoriser weights
             SavedFormat::id("l0w")
@@ -80,13 +80,11 @@ fn main() {
                 .round()
                 .quantise::<i16>(QA),
             SavedFormat::id("l0b").round().quantise::<i16>(QA),
-            SavedFormat::id("l1w").round().quantise::<i16>(QB),
-            // SavedFormat::id("l1w").round().quantise::<i16>(QB).transpose(),
+            SavedFormat::id("l1w").round().quantise::<i16>(QB).transpose(),
             SavedFormat::id("l1b").round().quantise::<i16>(QA * QB),
         ])
         .loss_fn(|output, target| output.sigmoid().squared_error(target))
-        // .build(|builder, stm_inputs, ntm_inputs, output_buckets| {
-        .build(|builder, stm_inputs, ntm_inputs| {
+        .build(|builder, stm_inputs, ntm_inputs, output_buckets| {
             // input layer factoriser
             let l0f = builder.new_weights("l0f", Shape::new(HIDDEN_SIZE, 768), InitSettings::Zeroed);
             let expanded_factoriser = l0f.repeat(NUM_INPUT_BUCKETS);
@@ -96,15 +94,13 @@ fn main() {
             l0.weights = l0.weights + expanded_factoriser;
 
             // output layer weights
-            let l1 = builder.new_affine("l1", 2 * HIDDEN_SIZE, 1);
-            // let l1 = builder.new_affine("l1", 2 * HIDDEN_SIZE, NUM_OUTPUT_BUCKETS);
+            let l1 = builder.new_affine("l1", 2 * HIDDEN_SIZE, NUM_OUTPUT_BUCKETS);
 
             // inference
             let stm_hidden = l0.forward(stm_inputs).screlu();
             let ntm_hidden = l0.forward(ntm_inputs).screlu();
             let hidden_layer = stm_hidden.concat(ntm_hidden);
-            l1.forward(hidden_layer)
-            // l1.forward(hidden_layer).select(output_buckets)
+            l1.forward(hidden_layer).select(output_buckets)
         });
 
     // need to account for factoriser weight magnitudes
