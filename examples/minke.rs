@@ -16,7 +16,7 @@ use bullet_lib::{
 };
 use std::{fs, path::Path};
 
-const OUTPUT_DIRECTORY: &str = "checkpoints/minke25/v1";
+const OUTPUT_DIRECTORY: &str = "checkpoints/minke26/v1";
 const BINPACK_PATH: &str = "data/selfgen/interleaved_7-23.vf";
 const N_THREADS: usize = 4;
 const BUFFER_SIZE_MB: usize = 2048;
@@ -44,16 +44,16 @@ const QB: i16 = 64;
 #[rustfmt::skip]
 const BUCKET_LAYOUT: [usize; 32] = [
     0, 1, 2, 3,
-    4, 4, 5, 5,
-    6, 6, 6, 6,
-    6, 6, 6, 6,
-    6, 6, 6, 6,
-    7, 7, 7, 7,
-    7, 7, 7, 7,
-    7, 7, 7, 7,
+    4, 5, 6, 7,
+    8, 8, 8, 8,
+    9, 9, 9, 9,
+    9, 9, 9, 9,
+    9, 9, 9, 9,
+    9, 9, 9, 9,
+    9, 9, 9, 9,
 ];
 const NUM_INPUT_BUCKETS: usize = get_num_buckets(&BUCKET_LAYOUT);
-const NUM_OUTPUT_BUCKETS: usize = 8;
+const NUM_OUTPUT_BUCKETS: usize = 10;
 
 static SOURCE_CODE: &str = include_str!("minke.rs");
 fn save_config() {
