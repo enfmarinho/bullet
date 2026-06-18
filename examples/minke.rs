@@ -16,8 +16,8 @@ use bullet_lib::{
 };
 use std::{fs, path::Path};
 
-const OUTPUT_DIRECTORY: &str = "checkpoints/minke26/v2";
-const BINPACK_PATH: &str = "data/selfgen/interleaved_7-25.vf";
+const OUTPUT_DIRECTORY: &str = "checkpoints/minke27/v1";
+const BINPACK_PATH: &str = "data/selfgen/interleaved_12-25.vf";
 const N_THREADS: usize = 4;
 const BUFFER_SIZE_MB: usize = 2048;
 
