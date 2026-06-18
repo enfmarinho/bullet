@@ -16,14 +16,16 @@ use bullet_lib::{
 };
 use std::{fs, path::Path};
 
-const OUTPUT_DIRECTORY: &str = "checkpoints/minke27/v1";
-const BINPACK_PATH: &str = "data/selfgen/interleaved_12-25.vf";
+const CHECKPOINT_PATH: &str = "";
+const OUTDIR: &str = "checkpoints/minke26/v4";
+const DATASET_PATH: &str = "data/selfgen/interleaved_12-25.vf";
 const N_THREADS: usize = 4;
 const BUFFER_SIZE_MB: usize = 2048;
 
-const START_SUPERBATCH: usize = 1;
-const END_FIRST_SCHEDULER: usize = 100;
-const END_SECOND_SCHEDULER: usize = 600;
+const START_SB: usize = 1;
+const END_FIRST_SB: usize = 100;
+const END_SECOND_SB: usize = 600;
+const END_FINETUNE_SB: usize = 800;
 
 const BATCH_SIZE: usize = 16_384;
 const BATCHES_PER_SUPERBATCH: usize = 6104;
@@ -31,9 +33,11 @@ const BATCHES_PER_SUPERBATCH: usize = 6104;
 const SAVE_RATE: usize = 100;
 const INITIAL_LR: f32 = 1e-3;
 const FINAL_LR: f32 = 1e-6;
+const FINETUNE_LR: f32 = 1e-6;
 
 const INITIAL_WDL: f32 = 0.20;
 const FINAL_WDL: f32 = 0.40;
+const FINETUNE_WDL: f32 = 0.40;
 
 const HIDDEN_SIZE: usize = 1024;
 const SCALE: f32 = 400.0;
@@ -57,8 +61,8 @@ const NUM_OUTPUT_BUCKETS: usize = 8;
 
 static SOURCE_CODE: &str = include_str!("minke.rs");
 fn save_config() {
-    let dest_path = Path::new(OUTPUT_DIRECTORY).join("config.rs");
-    let _ = fs::create_dir_all(OUTPUT_DIRECTORY);
+    let dest_path = Path::new(OUTDIR).join("config.rs");
+    let _ = fs::create_dir_all(OUTDIR);
     let _ = fs::write(dest_path, SOURCE_CODE);
 }
 
@@ -108,30 +112,7 @@ fn main() {
     trainer.optimiser.set_params_for_weight("l0w", stricter_clipping);
     trainer.optimiser.set_params_for_weight("l0f", stricter_clipping);
 
-    let schedule = TrainingSchedule {
-        net_id: "minke".to_string(),
-        eval_scale: SCALE,
-        steps: TrainingSteps {
-            batch_size: BATCH_SIZE,
-            batches_per_superbatch: BATCHES_PER_SUPERBATCH,
-            start_superbatch: START_SUPERBATCH,
-            end_superbatch: END_SECOND_SCHEDULER,
-        },
-        wdl_scheduler: wdl::Sequence {
-            first: wdl::ConstantWDL { value: INITIAL_WDL },
-            second: wdl::LinearWDL { start: INITIAL_WDL, end: FINAL_WDL },
-            first_scheduler_final_superbatch: END_FIRST_SCHEDULER,
-        },
-        lr_scheduler: lr::LinearDecayLR {
-            initial_lr: INITIAL_LR,
-            final_lr: FINAL_LR,
-            final_superbatch: END_SECOND_SCHEDULER,
-        },
-        save_rate: SAVE_RATE,
-    };
-
-    let settings =
-        LocalSettings { threads: N_THREADS, test_set: None, output_directory: OUTPUT_DIRECTORY, batch_queue_size: 64 };
+    let settings = LocalSettings { threads: N_THREADS, test_set: None, output_directory: OUTDIR, batch_queue_size: 64 };
 
     let data_loader = {
         let filter = loader::viribinpack::Filter {
@@ -155,10 +136,46 @@ fn main() {
             wdl_heuristic_scale: 1.5,
         };
 
-        loader::ViriBinpackLoader::new(BINPACK_PATH, BUFFER_SIZE_MB, N_THREADS, filter)
+        loader::ViriBinpackLoader::new(DATASET_PATH, BUFFER_SIZE_MB, N_THREADS, filter)
     };
 
+    if !CHECKPOINT_PATH.is_empty() {
+        trainer.load_from_checkpoint(CHECKPOINT_PATH);
+    }
+
+    let schedule = TrainingSchedule {
+        net_id: "minke".to_string(),
+        eval_scale: SCALE,
+        steps: TrainingSteps {
+            batch_size: BATCH_SIZE,
+            batches_per_superbatch: BATCHES_PER_SUPERBATCH,
+            start_superbatch: START_SB,
+            end_superbatch: END_SECOND_SB,
+        },
+        wdl_scheduler: wdl::Sequence {
+            first: wdl::ConstantWDL { value: INITIAL_WDL },
+            second: wdl::LinearWDL { start: INITIAL_WDL, end: FINAL_WDL },
+            first_scheduler_final_superbatch: END_FIRST_SB,
+        },
+        lr_scheduler: lr::LinearDecayLR { initial_lr: INITIAL_LR, final_lr: FINAL_LR, final_superbatch: END_SECOND_SB },
+        save_rate: SAVE_RATE,
+    };
     trainer.run(&schedule, &settings, &data_loader);
+
+    let finetune_schedule = TrainingSchedule {
+        net_id: "minke".to_string(),
+        eval_scale: SCALE,
+        steps: TrainingSteps {
+            batch_size: BATCH_SIZE,
+            batches_per_superbatch: BATCHES_PER_SUPERBATCH,
+            start_superbatch: END_SECOND_SB + 1,
+            end_superbatch: END_FINETUNE_SB,
+        },
+        wdl_scheduler: wdl::ConstantWDL { value: FINETUNE_WDL },
+        lr_scheduler: lr::ConstantLR { value: FINETUNE_LR },
+        save_rate: SAVE_RATE,
+    };
+    trainer.run(&finetune_schedule, &settings, &data_loader);
 
     for fen in [
         "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
