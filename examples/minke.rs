@@ -17,7 +17,7 @@ use bullet_lib::{
 use std::{fs, path::Path};
 
 const CHECKPOINT_PATH: &str = "";
-const OUTDIR: &str = "checkpoints/minke26/v4";
+const OUTDIR: &str = "checkpoints/minke27/v1";
 const DATASET_PATH: &str = "data/selfgen/interleaved_12-25.vf";
 const N_THREADS: usize = 4;
 const BUFFER_SIZE_MB: usize = 2048;
@@ -123,7 +123,7 @@ fn main() {
             filter_check: true,
             filter_castling: false,
             max_eval_incorrectness: u32::MAX,
-            random_fen_skipping: false,
+            random_fen_skipping: true,
             random_fen_skip_probability: 0.50,
 
             wdl_filtered: false,
