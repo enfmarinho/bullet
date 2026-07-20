@@ -17,7 +17,7 @@ use bullet_lib::{
 use std::{fs, path::Path};
 
 const CHECKPOINT_PATH: &str = "";
-const OUTDIR: &str = "checkpoints/minke29/v1";
+const OUTDIR: &str = "checkpoints/minke30/v1";
 const DATASET_PATH: &str = "data/selfgen/interleaved_12-28.vf";
 const N_THREADS: usize = 4;
 const BUFFER_SIZE_MB: usize = 2048;
@@ -39,12 +39,23 @@ const INITIAL_WDL: f32 = 0.20;
 const FINAL_WDL: f32 = 0.40;
 const FINETUNE_WDL: f32 = 0.60;
 
-const HIDDEN_SIZE: usize = 1024;
 const SCALE: f32 = 400.0;
+
+// Quantization
 const QA: i16 = 255;
-const QB: i16 = 64;
+const QB: i16 = 128;
+const QC: i32 = 64;
+
+const L1_SHIFT: usize = 8;
+const L1_SHIFT_SCALE: f32 = QA as f32 / (1 << L1_SHIFT) as f32;
+const I8_RANGE: f32 = i8::MAX as f32 / QB as f32;
+const L1_RANGE: f32 = I8_RANGE * L1_SHIFT_SCALE * L1_SHIFT_SCALE;
 
 // arch
+const HIDDEN_SIZE: usize = 1024;
+const L2_SIZE: usize = 16;
+const L3_SIZE: usize = 32;
+
 #[rustfmt::skip]
 const BUCKET_LAYOUT: [usize; 32] = [
     0, 1, 2, 3,
@@ -75,17 +86,29 @@ fn main() {
         .inputs(ChessBucketsMirrored::new(BUCKET_LAYOUT))
         .output_buckets(MaterialCount::<NUM_OUTPUT_BUCKETS>)
         .save_format(&[
-            // merge in the factoriser weights
             SavedFormat::id("l0w")
                 .transform(|store, weights| {
-                    let factoriser = store.get("l0f").values.f32().repeat(NUM_INPUT_BUCKETS);
-                    weights.into_iter().zip(factoriser).map(|(a, b)| a + b).collect()
+                    let factorizer = store.get("l0f").values.f32().repeat(NUM_INPUT_BUCKETS);
+                    weights.into_iter().zip(factorizer).map(|(a, b)| a + b).collect()
                 })
                 .round()
                 .quantise::<i16>(QA),
             SavedFormat::id("l0b").round().quantise::<i16>(QA),
-            SavedFormat::id("l1w").round().quantise::<i16>(QB).transpose(),
-            SavedFormat::id("l1b").round().quantise::<i16>(QA * QB),
+            SavedFormat::id("l1w")
+                .transform(|_, mut weights| {
+                    for i in weights.iter_mut() {
+                        *i /= L1_SHIFT_SCALE * L1_SHIFT_SCALE;
+                    }
+                    weights
+                })
+                .round()
+                .quantise::<i8>(QB)
+                .transpose(),
+            SavedFormat::id("l1b").round().quantise::<i32>(QC * (1 << L1_SHIFT)),
+            SavedFormat::id("l2w").round().quantise::<i32>(QC).transpose(),
+            SavedFormat::id("l2b").round().quantise::<i32>(QC.pow(3)),
+            SavedFormat::id("l3w").round().quantise::<i32>(QC).transpose(),
+            SavedFormat::id("l3b").round().quantise::<i32>(QC.pow(4)),
         ])
         .loss_fn(|output, target| output.sigmoid().squared_error(target))
         .build(|builder, stm_inputs, ntm_inputs, output_buckets| {
@@ -95,22 +118,29 @@ fn main() {
 
             // input layer weights
             let mut l0 = builder.new_affine("l0", 768 * NUM_INPUT_BUCKETS, HIDDEN_SIZE);
+            l0.init_with_effective_input_size(32);
             l0.weights = l0.weights + expanded_factoriser;
 
-            // output layer weights
-            let l1 = builder.new_affine("l1", 2 * HIDDEN_SIZE, NUM_OUTPUT_BUCKETS);
+            // layer stacks weights
+            let l1 = builder.new_affine("l1", HIDDEN_SIZE, NUM_OUTPUT_BUCKETS * L2_SIZE);
+            let l2 = builder.new_affine("l2", L2_SIZE, NUM_OUTPUT_BUCKETS * L3_SIZE);
+            let l3 = builder.new_affine("l3", L3_SIZE, NUM_OUTPUT_BUCKETS);
 
             // inference
-            let stm_hidden = l0.forward(stm_inputs).screlu();
-            let ntm_hidden = l0.forward(ntm_inputs).screlu();
-            let hidden_layer = stm_hidden.concat(ntm_hidden);
-            l1.forward(hidden_layer).select(output_buckets)
+            let stm_hidden = l0.forward(stm_inputs).crelu().pairwise_mul();
+            let ntm_hidden = l0.forward(ntm_inputs).crelu().pairwise_mul();
+            let hl1 = stm_hidden.concat(ntm_hidden);
+            let hl2 = l1.forward(hl1).select(output_buckets).screlu();
+            let hl3 = l2.forward(hl2).select(output_buckets).crelu();
+            l3.forward(hl3).select(output_buckets)
         });
 
     // need to account for factoriser weight magnitudes
-    let stricter_clipping = AdamWParams { max_weight: 0.99, min_weight: -0.99, ..Default::default() };
-    trainer.optimiser.set_params_for_weight("l0w", stricter_clipping);
-    trainer.optimiser.set_params_for_weight("l0f", stricter_clipping);
+    let l0_clip = AdamWParams { max_weight: 0.99, min_weight: -0.99, ..Default::default() };
+    let l1_clip = AdamWParams { max_weight: L1_RANGE, min_weight: -L1_RANGE, ..Default::default() };
+    trainer.optimiser.set_params_for_weight("l0w", l0_clip);
+    trainer.optimiser.set_params_for_weight("l0f", l0_clip);
+    trainer.optimiser.set_params_for_weight("l1w", l1_clip);
 
     let settings = LocalSettings { threads: N_THREADS, test_set: None, output_directory: OUTDIR, batch_queue_size: 64 };
 
