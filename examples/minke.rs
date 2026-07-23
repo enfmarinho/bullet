@@ -17,7 +17,7 @@ use bullet_lib::{
 use std::{fs, path::Path};
 
 const CHECKPOINT_PATH: &str = "";
-const OUTDIR: &str = "checkpoints/minke30/v1";
+const OUTDIR: &str = "checkpoints/minke31/v1";
 const DATASET_PATH: &str = "data/selfgen/interleaved_12-28.vf";
 const N_THREADS: usize = 4;
 const BUFFER_SIZE_MB: usize = 2048;
@@ -27,8 +27,8 @@ const END_FIRST_SB: usize = 100;
 const END_SECOND_SB: usize = 600;
 const END_FINETUNE_SB: usize = 800;
 
-const BATCH_SIZE: usize = 16_384;
-const BATCHES_PER_SUPERBATCH: usize = 6104;
+const BATCH_SIZE: usize = 16_384 * 8;
+const BATCHES_PER_SUPERBATCH: usize = 6104 / 8;
 
 const SAVE_RATE: usize = 100;
 const INITIAL_LR: f32 = 1e-3;
@@ -52,7 +52,7 @@ const I8_RANGE: f32 = i8::MAX as f32 / QB as f32;
 const L1_RANGE: f32 = I8_RANGE * L1_SHIFT_SCALE * L1_SHIFT_SCALE;
 
 // arch
-const HIDDEN_SIZE: usize = 1024;
+const L1_SIZE: usize = 1024;
 const L2_SIZE: usize = 16;
 const L3_SIZE: usize = 32;
 
@@ -113,22 +113,24 @@ fn main() {
         .loss_fn(|output, target| output.sigmoid().squared_error(target))
         .build(|builder, stm_inputs, ntm_inputs, output_buckets| {
             // input layer factoriser
-            let l0f = builder.new_weights("l0f", Shape::new(HIDDEN_SIZE, 768), InitSettings::Zeroed);
+            let l0f = builder.new_weights("l0f", Shape::new(L1_SIZE, 768), InitSettings::Zeroed);
             let expanded_factoriser = l0f.repeat(NUM_INPUT_BUCKETS);
 
             // input layer weights
-            let mut l0 = builder.new_affine("l0", 768 * NUM_INPUT_BUCKETS, HIDDEN_SIZE);
+            let mut l0 = builder.new_affine("l0", 768 * NUM_INPUT_BUCKETS, L1_SIZE);
             l0.init_with_effective_input_size(32);
             l0.weights = l0.weights + expanded_factoriser;
 
             // layer stacks weights
-            let l1 = builder.new_affine("l1", HIDDEN_SIZE, NUM_OUTPUT_BUCKETS * L2_SIZE);
+            let l1 = builder.new_affine("l1", L1_SIZE, NUM_OUTPUT_BUCKETS * L2_SIZE);
             let l2 = builder.new_affine("l2", L2_SIZE, NUM_OUTPUT_BUCKETS * L3_SIZE);
             let l3 = builder.new_affine("l3", L3_SIZE, NUM_OUTPUT_BUCKETS);
 
             // inference
-            let stm_hidden = l0.forward(stm_inputs).crelu().pairwise_mul();
-            let ntm_hidden = l0.forward(ntm_inputs).crelu().pairwise_mul();
+            let ft_forward = |input, start, end| l0.slice(start, end).forward(input).crelu();
+            let stm_hidden = ft_forward(stm_inputs, 0, L1_SIZE / 2) * ft_forward(stm_inputs, L1_SIZE / 2, L1_SIZE);
+            let ntm_hidden = ft_forward(ntm_inputs, 0, L1_SIZE / 2) * ft_forward(ntm_inputs, L1_SIZE / 2, L1_SIZE);
+
             let hl1 = stm_hidden.concat(ntm_hidden);
             let hl2 = l1.forward(hl1).select(output_buckets).screlu();
             let hl3 = l2.forward(hl2).select(output_buckets).crelu();
