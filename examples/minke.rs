@@ -1,7 +1,7 @@
 use bullet_lib::{
     game::{
         inputs::{get_num_buckets, ChessBucketsMirrored},
-        outputs::MaterialCount,
+        outputs::{self, MaterialCount},
     },
     nn::{
         optimiser::{AdamW, AdamWParams},
@@ -17,7 +17,7 @@ use bullet_lib::{
 use std::{fs, path::Path};
 
 const CHECKPOINT_PATH: &str = "";
-const OUTDIR: &str = "checkpoints/minke31/v1";
+const OUTDIR: &str = "checkpoints/minke31/v2";
 const DATASET_PATH: &str = "data/selfgen/interleaved_12-28.vf";
 const N_THREADS: usize = 4;
 const BUFFER_SIZE_MB: usize = 2048;
@@ -27,8 +27,8 @@ const END_FIRST_SB: usize = 100;
 const END_SECOND_SB: usize = 600;
 const END_FINETUNE_SB: usize = 800;
 
-const BATCH_SIZE: usize = 16_384 * 8;
-const BATCHES_PER_SUPERBATCH: usize = 6104 / 8;
+const BATCH_SIZE: usize = 16_384;
+const BATCHES_PER_SUPERBATCH: usize = 6104;
 
 const SAVE_RATE: usize = 100;
 const INITIAL_LR: f32 = 1e-3;
@@ -123,18 +123,24 @@ fn main() {
 
             // layer stacks weights
             let l1 = builder.new_affine("l1", L1_SIZE, NUM_OUTPUT_BUCKETS * L2_SIZE);
-            let l2 = builder.new_affine("l2", L2_SIZE, NUM_OUTPUT_BUCKETS * L3_SIZE);
+            let l2 = builder.new_affine("l2", L2_SIZE * 2, NUM_OUTPUT_BUCKETS * L3_SIZE);
             let l3 = builder.new_affine("l3", L3_SIZE, NUM_OUTPUT_BUCKETS);
 
             // inference
             let ft_forward = |input, start, end| l0.slice(start, end).forward(input).crelu();
             let stm_hidden = ft_forward(stm_inputs, 0, L1_SIZE / 2) * ft_forward(stm_inputs, L1_SIZE / 2, L1_SIZE);
             let ntm_hidden = ft_forward(ntm_inputs, 0, L1_SIZE / 2) * ft_forward(ntm_inputs, L1_SIZE / 2, L1_SIZE);
+            let l0_out = stm_hidden.concat(ntm_hidden);
 
-            let hl1 = stm_hidden.concat(ntm_hidden);
-            let hl2 = l1.forward(hl1).select(output_buckets).screlu();
-            let hl3 = l2.forward(hl2).select(output_buckets).crelu();
-            l3.forward(hl3).select(output_buckets)
+            let l1_out = l1.forward(l0_out).select(output_buckets);
+            let hl2 = l1_out.concat(l1_out.abs_pow(2.0)).crelu();
+
+            let l2_out = l2.forward(hl2).select(output_buckets);
+            let hl3 = l2_out.crelu();
+
+            let l3_out = l3.forward(hl3).select(output_buckets);
+
+            l3_out
         });
 
     // need to account for factoriser weight magnitudes
