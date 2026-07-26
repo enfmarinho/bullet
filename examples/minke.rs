@@ -17,7 +17,7 @@ use bullet_lib::{
 use std::{fs, path::Path};
 
 const CHECKPOINT_PATH: &str = "";
-const OUTDIR: &str = "checkpoints/minke34/v2";
+const OUTDIR: &str = "checkpoints/minke34/v3";
 const DATASET_PATH: &str = "data/selfgen/interleaved_12-28.vf";
 const N_THREADS: usize = 4;
 const BUFFER_SIZE_MB: usize = 2048;
@@ -33,8 +33,7 @@ const BATCHES_PER_SUPERBATCH: usize = 6104;
 const SAVE_RATE: usize = 100;
 const INITIAL_LR: f32 = 1e-3;
 const FINAL_LR: f32 = 1e-6;
-const FINETUNE_INITIAL_LR: f32 = 1e-5;
-const FINETUNE_FINAL_LR: f32 = 1e-7;
+const FINETUNE_LR: f32 = 1e-6;
 
 const INITIAL_WDL: f32 = 0.20;
 const FINAL_WDL: f32 = 0.40;
@@ -53,7 +52,7 @@ const I8_RANGE: f32 = i8::MAX as f32 / QB as f32;
 const L1_RANGE: f32 = I8_RANGE * L1_SHIFT_SCALE * L1_SHIFT_SCALE;
 
 // arch
-const L1_SIZE: usize = 1024;
+const L1_SIZE: usize = 1280;
 const L2_SIZE: usize = 16;
 const L3_SIZE: usize = 32;
 
@@ -211,11 +210,7 @@ fn main() {
             end_superbatch: END_FINETUNE_SB,
         },
         wdl_scheduler: wdl::ConstantWDL { value: FINETUNE_WDL },
-        lr_scheduler: lr::LinearDecayLR {
-            initial_lr: FINETUNE_INITIAL_LR,
-            final_lr: FINETUNE_FINAL_LR,
-            final_superbatch: END_FINETUNE_SB,
-        },
+        lr_scheduler: lr::ConstantLR { value: FINETUNE_LR },
         save_rate: SAVE_RATE,
     };
     trainer.run(&finetune_schedule, &settings, &data_loader);
