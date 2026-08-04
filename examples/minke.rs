@@ -17,7 +17,7 @@ use bullet_lib::{
 use std::{fs, path::Path};
 
 const CHECKPOINT_PATH: &str = "";
-const OUTDIR: &str = "checkpoints/minke35/v1";
+const OUTDIR: &str = "checkpoints/minke36/v1";
 const DATASET_PATH: &str = "data/selfgen/interleaved_12-33.vf";
 const N_THREADS: usize = 4;
 const BUFFER_SIZE_MB: usize = 2048;
@@ -110,8 +110,7 @@ fn main() {
             SavedFormat::id("l3w").round().quantise::<i32>(QC).transpose(),
             SavedFormat::id("l3b").round().quantise::<i32>(QC.pow(4)),
         ])
-        .loss_fn(|output, target| output.sigmoid().squared_error(target))
-        .build(|builder, stm_inputs, ntm_inputs, output_buckets| {
+        .build_custom(|builder, (stm_inputs, ntm_inputs, output_buckets), target| {
             // input layer factoriser
             let l0f = builder.new_weights("l0f", Shape::new(L1_SIZE, 768), InitSettings::Zeroed);
             let expanded_factoriser = l0f.repeat(NUM_INPUT_BUCKETS);
@@ -140,7 +139,13 @@ fn main() {
 
             let l3_out = l3.forward(hl3).select(output_buckets);
 
-            l3_out
+            // loss
+            let ones_l1_vec = builder.new_constant(Shape::new(1, L1_SIZE), &[1.0 / L1_SIZE as f32; L1_SIZE]);
+            let l0_mean_activation = ones_l1_vec.matmul(l0_out);
+            let eval_loss = l3_out.sigmoid().squared_error(target);
+            let loss = eval_loss + 0.005 * l0_mean_activation;
+
+            (l3_out, loss)
         });
 
     // need to account for factoriser weight magnitudes
