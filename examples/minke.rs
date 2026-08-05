@@ -17,10 +17,8 @@ use bullet_lib::{
 use std::{fs, path::Path};
 
 const CHECKPOINT_PATH: &str = "";
-const OUTDIR: &str = "checkpoints/minke37/v1";
+const OUTDIR: &str = "checkpoints/minke37/v2";
 const DATASET_PATH: &str = "data/selfgen/interleaved_12-33.vf";
-const FINETUNE_DATASET_PATH: &str = "data/selfgen/interleaved_23-33.vf";
-
 const N_THREADS: usize = 4;
 const BUFFER_SIZE_MB: usize = 2048;
 
@@ -38,7 +36,7 @@ const FINAL_LR: f32 = 1e-6;
 const FINETUNE_LR: f32 = 1e-6;
 
 const INITIAL_WDL: f32 = 0.20;
-const FINAL_WDL: f32 = 0.40;
+const FINAL_WDL: f32 = 0.60;
 const FINETUNE_WDL: f32 = 0.90;
 
 const SCALE: f32 = 400.0;
@@ -159,25 +157,29 @@ fn main() {
 
     let settings = LocalSettings { threads: N_THREADS, test_set: None, output_directory: OUTDIR, batch_queue_size: 64 };
 
-    let filter = loader::viribinpack::Filter {
-        min_ply: 16,
-        min_pieces: 4,
-        max_eval: 10000,
-        filter_tactical: true,
-        filter_check: true,
-        filter_castling: false,
-        max_eval_incorrectness: u32::MAX,
-        random_fen_skipping: true,
-        random_fen_skip_probability: 0.50,
+    let data_loader = {
+        let filter = loader::viribinpack::Filter {
+            min_ply: 16,
+            min_pieces: 4,
+            max_eval: 10000,
+            filter_tactical: true,
+            filter_check: true,
+            filter_castling: false,
+            max_eval_incorrectness: u32::MAX,
+            random_fen_skipping: true,
+            random_fen_skip_probability: 0.50,
 
-        wdl_filtered: false,
-        wdl_model_params_a: [0.0; 4],
-        wdl_model_params_b: [0.0; 4],
+            wdl_filtered: false,
+            wdl_model_params_a: [0.0; 4],
+            wdl_model_params_b: [0.0; 4],
 
-        material_min: 17,
-        material_max: 78,
-        mom_target: 58,
-        wdl_heuristic_scale: 1.5,
+            material_min: 17,
+            material_max: 78,
+            mom_target: 58,
+            wdl_heuristic_scale: 1.5,
+        };
+
+        loader::ViriBinpackLoader::new(DATASET_PATH, BUFFER_SIZE_MB, N_THREADS, filter)
     };
 
     if !CHECKPOINT_PATH.is_empty() {
@@ -201,7 +203,7 @@ fn main() {
         lr_scheduler: lr::LinearDecayLR { initial_lr: INITIAL_LR, final_lr: FINAL_LR, final_superbatch: END_SECOND_SB },
         save_rate: SAVE_RATE,
     };
-    trainer.run(&schedule, &settings, &loader::ViriBinpackLoader::new(DATASET_PATH, BUFFER_SIZE_MB, N_THREADS, filter.clone()));
+    trainer.run(&schedule, &settings, &data_loader);
 
     let finetune_schedule = TrainingSchedule {
         net_id: "minke".to_string(),
@@ -216,7 +218,7 @@ fn main() {
         lr_scheduler: lr::ConstantLR { value: FINETUNE_LR },
         save_rate: SAVE_RATE,
     };
-    trainer.run(&finetune_schedule, &settings, &loader::ViriBinpackLoader::new(FINETUNE_DATASET_PATH, BUFFER_SIZE_MB, N_THREADS, filter));
+    trainer.run(&finetune_schedule, &settings, &data_loader);
 
     for fen in [
         "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
