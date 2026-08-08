@@ -17,7 +17,7 @@ use bullet_lib::{
 use std::{fs, path::Path};
 
 const CHECKPOINT_PATH: &str = "";
-const OUTDIR: &str = "checkpoints/minke37/v4";
+const OUTDIR: &str = "checkpoints/minke38/v1";
 const DATASET_PATH: &str = "data/selfgen/interleaved_12-33.vf";
 const N_THREADS: usize = 4;
 const BUFFER_SIZE_MB: usize = 2048;
@@ -27,8 +27,8 @@ const END_FIRST_SB: usize = 100;
 const END_SECOND_SB: usize = 600;
 const END_FINETUNE_SB: usize = 800;
 
-const BATCH_SIZE: usize = 16_384;
-const BATCHES_PER_SUPERBATCH: usize = 6104;
+const BATCH_SIZE: usize = 16_384 * 8;
+const BATCHES_PER_SUPERBATCH: usize = 6104 / 8;
 
 const SAVE_RATE: usize = 25;
 const INITIAL_LR: f32 = 1e-3;
@@ -201,7 +201,10 @@ fn main() {
             second: wdl::LinearWDL { start: INITIAL_WDL, end: FINAL_WDL },
             first_scheduler_final_superbatch: END_FIRST_SB,
         },
-        lr_scheduler: lr::LinearDecayLR { initial_lr: INITIAL_LR, final_lr: FINAL_LR, final_superbatch: END_SECOND_SB },
+        lr_scheduler: lr::Warmup {
+            inner: lr::LinearDecayLR { initial_lr: INITIAL_LR, final_lr: FINAL_LR, final_superbatch: END_SECOND_SB },
+            warmup_batches: 1600,
+        },
         save_rate: SAVE_RATE,
     };
     trainer.run(&schedule, &settings, &data_loader);
