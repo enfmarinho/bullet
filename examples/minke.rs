@@ -26,7 +26,7 @@ use viriformat::{
 };
 
 const CHECKPOINT_PATH: &str = "";
-const OUTDIR: &str = "checkpoints/minke38/v2";
+const OUTDIR: &str = "checkpoints/minke39/v2";
 const DATASET_PATH: &str = "data/selfgen/interleaved_12-33.vf";
 const N_THREADS: usize = 4;
 const BUFFER_SIZE_MB: usize = 2048;
@@ -68,14 +68,14 @@ const L3_SIZE: usize = 32;
 
 #[rustfmt::skip]
 const BUCKET_LAYOUT: [usize; 32] = [
-    0, 1, 2, 3,
-    4, 5, 6, 7,
-    8, 8, 8, 8,
-    9, 9, 9, 9,
-    9, 9, 9, 9,
-    9, 9, 9, 9,
-    9, 9, 9, 9,
-    9, 9, 9, 9,
+    0,  1,  2,  3,
+    4,  5,  6,  7,
+    8,  8,  9,  9,
+    10, 10, 11, 11,
+    12, 12, 13, 13,
+    12, 12, 13, 13,
+    14, 14, 15, 15,
+    14, 14, 15, 15,
 ];
 const NUM_INPUT_BUCKETS: usize = get_num_buckets(&BUCKET_LAYOUT);
 const NUM_OUTPUT_BUCKETS: usize = 8;
