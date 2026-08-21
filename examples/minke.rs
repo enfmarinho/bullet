@@ -26,7 +26,7 @@ use viriformat::{
 };
 
 const CHECKPOINT_PATH: &str = "";
-const OUTDIR: &str = "checkpoints/minke39/v2";
+const OUTDIR: &str = "checkpoints/minke40/v1";
 const DATASET_PATH: &str = "data/selfgen/interleaved_12-33.vf";
 const N_THREADS: usize = 4;
 const BUFFER_SIZE_MB: usize = 2048;
@@ -62,7 +62,7 @@ const I8_RANGE: f32 = i8::MAX as f32 / QB as f32;
 const L1_RANGE: f32 = I8_RANGE * L1_SHIFT_SCALE * L1_SHIFT_SCALE;
 
 // arch
-const L1_SIZE: usize = 1280;
+const L1_SIZE: usize = 1536;
 const L2_SIZE: usize = 16;
 const L3_SIZE: usize = 32;
 
