@@ -4,10 +4,10 @@ use std::{fs, path::Path};
 use bullet_lib::game::inputs::get_num_buckets;
 
 pub const CHECKPOINT_PATH: &str = "";
-pub const OUTDIR: &str = "checkpoints/minke40/v2";
+pub const OUTDIR: &str = "checkpoints/minke40/v3";
 pub const DATASET_PATH: &str = "data/selfgen/interleaved_12-33.vf";
 pub const N_THREADS: usize = 4;
-pub const BUFFER_SIZE_MB: usize = 2048 * 4;
+pub const BUFFER_SIZE_MB: usize = 2048;
 
 pub const START_SB: usize = 1;
 pub const END_FIRST_SB: usize = 100;
@@ -20,7 +20,7 @@ pub const BATCHES_PER_SUPERBATCH: usize = 6104;
 pub const SAVE_RATE: usize = 25;
 pub const INITIAL_LR: f32 = 1e-3;
 pub const FINAL_LR: f32 = 1e-6;
-pub const FINETUNE_INITIAL_LR: f32 = 1e-5;
+pub const FINETUNE_INITIAL_LR: f32 = 4e-5;
 pub const FINETUNE_FINAL_LR: f32 = 1e-7;
 
 pub const INITIAL_WDL: f32 = 0.20;
@@ -59,8 +59,14 @@ pub const NUM_INPUT_BUCKETS: usize = get_num_buckets(&BUCKET_LAYOUT);
 pub const NUM_OUTPUT_BUCKETS: usize = 8;
 
 static SOURCE_CODE: &str = include_str!("main.rs");
+static CONFIG_CODE: &str = include_str!("config.rs");
 pub fn save_config() {
-    let dest_path = Path::new(OUTDIR).join("config.rs");
-    let _ = fs::create_dir_all(OUTDIR);
-    let _ = fs::write(dest_path, SOURCE_CODE);
+    let save = |path, code| {
+        let dest_path = Path::new(OUTDIR).join(path);
+        let _ = fs::create_dir_all(OUTDIR);
+        let _ = fs::write(dest_path, code);
+    };
+
+    save("main.rs", SOURCE_CODE);
+    save("config.rs", CONFIG_CODE);
 }
