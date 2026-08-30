@@ -27,7 +27,7 @@ metal = ["bullet-gpu/metal", "bullet-trainer/metal"]
 
 [[example]]
 name = "minke"
-path = "../../examples/minke.rs"
+path = "../../examples/minke/main.rs"
 
 [[example]]
 name = "simple"
