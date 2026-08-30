@@ -24,6 +24,26 @@ use viriformat::{
     dataformat::WDL,
 };
 
+macro_rules! run_stage {
+    ($trainer:expr, $settings:expr, $data_loader:expr, $stage:expr, $sbs:expr, $lr:expr, $wdl:expr) => {{
+        let schedule = TrainingSchedule {
+            net_id: format!("minke-stage{}", $stage),
+            eval_scale: SCALE,
+            steps: TrainingSteps {
+                batch_size: BATCH_SIZE,
+                batches_per_superbatch: BATCHES_PER_SUPERBATCH,
+                start_superbatch: 1,
+                end_superbatch: $sbs,
+            },
+            lr_scheduler: $lr,
+            wdl_scheduler: $wdl,
+            save_rate: SAVE_RATE,
+        };
+
+        $trainer.run(&schedule, $settings, $data_loader);
+    }};
+}
+
 fn piece_count_acceptance(board: &Board) -> f64 {
     // from pawnnochio training scripts
     #[rustfmt::skip]
@@ -181,46 +201,36 @@ fn main() {
         trainer.load_from_checkpoint(CHECKPOINT_PATH);
     }
 
-    let schedule = TrainingSchedule {
-        net_id: "minke".to_string(),
-        eval_scale: SCALE,
-        steps: TrainingSteps {
-            batch_size: BATCH_SIZE,
-            batches_per_superbatch: BATCHES_PER_SUPERBATCH,
-            start_superbatch: START_SB,
-            end_superbatch: END_SECOND_SB,
-        },
-        wdl_scheduler: wdl::Sequence {
-            first: wdl::ConstantWDL { value: INITIAL_WDL },
-            second: wdl::LinearWDL { start: INITIAL_WDL, end: FINAL_WDL },
-            first_scheduler_final_superbatch: END_FIRST_SB,
-        },
-        lr_scheduler: lr::Warmup {
+    run_stage!(
+        &mut trainer,
+        &settings,
+        &data_loader,
+        1,
+        END_SECOND_SB,
+        lr::Warmup {
             inner: lr::LinearDecayLR { initial_lr: INITIAL_LR, final_lr: FINAL_LR, final_superbatch: END_SECOND_SB },
             warmup_batches: 1600,
         },
-        save_rate: SAVE_RATE,
-    };
-    trainer.run(&schedule, &settings, &data_loader);
+        wdl::Sequence {
+            first: wdl::ConstantWDL { value: INITIAL_WDL },
+            second: wdl::LinearWDL { start: INITIAL_WDL, end: FINAL_WDL },
+            first_scheduler_final_superbatch: END_FIRST_SB,
+        }
+    );
 
-    let finetune_schedule = TrainingSchedule {
-        net_id: "minke".to_string(),
-        eval_scale: SCALE,
-        steps: TrainingSteps {
-            batch_size: BATCH_SIZE,
-            batches_per_superbatch: BATCHES_PER_SUPERBATCH,
-            start_superbatch: END_SECOND_SB + 1,
-            end_superbatch: END_FINETUNE_SB,
-        },
-        wdl_scheduler: wdl::ConstantWDL { value: FINETUNE_WDL },
-        lr_scheduler: lr::LinearDecayLR {
+    run_stage!(
+        &mut trainer,
+        &settings,
+        &data_loader,
+        2,
+        END_FINETUNE_SB,
+        lr::LinearDecayLR {
             initial_lr: FINETUNE_INITIAL_LR,
             final_lr: FINETUNE_FINAL_LR,
             final_superbatch: END_FINETUNE_SB,
         },
-        save_rate: SAVE_RATE,
-    };
-    trainer.run(&finetune_schedule, &settings, &data_loader);
+        wdl::ConstantWDL { value: FINETUNE_WDL }
+    );
 
     for fen in [
         "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
