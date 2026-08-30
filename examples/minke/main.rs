@@ -201,35 +201,49 @@ fn main() {
         trainer.load_from_checkpoint(CHECKPOINT_PATH);
     }
 
+    // stage 0
     run_stage!(
         &mut trainer,
         &settings,
         &data_loader,
-        1,
-        END_SECOND_SB,
-        lr::Warmup {
-            inner: lr::LinearDecayLR { initial_lr: INITIAL_LR, final_lr: FINAL_LR, final_superbatch: END_SECOND_SB },
-            warmup_batches: 1600,
+        0, // stage id
+        S0_SBS,
+        lr::Sequence {
+            first: lr::LinearDecayLR {
+                initial_lr: S0_WARMUP_INITIAL_LR,
+                final_lr: S0_WARMUP_FINAL_LR,
+                final_superbatch: S0_WARMUP_SBS,
+            },
+            second: lr::LinearDecayLR {
+                initial_lr: S0_COOLDOWN_INITIAL_LR,
+                final_lr: S0_COOLDOWN_FINAL_LR,
+                final_superbatch: S0_COOLDOWN_SBS,
+            },
+            first_scheduler_final_superbatch: S0_WARMUP_SBS,
         },
-        wdl::Sequence {
-            first: wdl::ConstantWDL { value: INITIAL_WDL },
-            second: wdl::LinearWDL { start: INITIAL_WDL, end: FINAL_WDL },
-            first_scheduler_final_superbatch: END_FIRST_SB,
-        }
+        wdl::ConstantWDL { value: S0_WDL }
     );
 
+    // stage 1
     run_stage!(
         &mut trainer,
         &settings,
         &data_loader,
-        2,
-        END_FINETUNE_SB,
-        lr::LinearDecayLR {
-            initial_lr: FINETUNE_INITIAL_LR,
-            final_lr: FINETUNE_FINAL_LR,
-            final_superbatch: END_FINETUNE_SB,
-        },
-        wdl::ConstantWDL { value: FINETUNE_WDL }
+        1, // stage id
+        S1_SBS,
+        lr::LinearDecayLR { initial_lr: S1_INITIAL_LR, final_lr: S1_FINAL_LR, final_superbatch: S1_SBS },
+        wdl::LinearWDL { start: S1_INITIAL_WDL, end: S1_FINAL_WDL }
+    );
+
+    // stage 2
+    run_stage!(
+        &mut trainer,
+        &settings,
+        &data_loader,
+        2, // stage id
+        S2_SBS,
+        lr::LinearDecayLR { initial_lr: S2_INITIAL_LR, final_lr: S2_FINAL_LR, final_superbatch: S2_SBS },
+        wdl::ConstantWDL { value: S2_WDL }
     );
 
     for fen in [
