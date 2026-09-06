@@ -4,8 +4,8 @@ use std::{fs, path::Path};
 use bullet_lib::game::inputs::get_num_buckets;
 
 pub const CHECKPOINT_PATH: &str = "";
-pub const OUTDIR: &str = "checkpoints/minke40/v7";
-pub const DATASET_PATH: &str = "data/selfgen/interleaved_12-39.vf";
+pub const OUTDIR: &str = "checkpoints/minke41/v1";
+pub const DATASET_PATH: &str = "data/selfgen/interleaved_12-40.vf";
 pub const N_THREADS: usize = 4;
 pub const BUFFER_SIZE_MB: usize = 2048;
 
