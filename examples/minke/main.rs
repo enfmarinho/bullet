@@ -131,17 +131,32 @@ fn main() {
         &mut trainer,
         &settings,
         &data_loader,
+        0, // stage id
+        S0_SBS,
+        lr::Sequence {
+            first: lr::LinearDecayLR {
+                initial_lr: S0_WARMUP_INITIAL_LR,
+                final_lr: S0_WARMUP_FINAL_LR,
+                final_superbatch: S0_WARMUP_SBS,
+            },
+            second: lr::LinearDecayLR {
+                initial_lr: S0_COOLDOWN_INITIAL_LR,
+                final_lr: S0_COOLDOWN_FINAL_LR,
+                final_superbatch: S0_COOLDOWN_SBS,
+            },
+            first_scheduler_final_superbatch: S0_WARMUP_SBS,
+        },
+        wdl::ConstantWDL { value: S0_WDL }
+    );
+
+    run_stage!(
+        &mut trainer,
+        &settings,
+        &data_loader,
         1, // stage id
         S1_SBS,
-        lr::Warmup {
-            inner: lr::LinearDecayLR { initial_lr: S1_INITIAL_LR, final_lr: S1_FINAL_LR, final_superbatch: S1_SBS },
-            warmup_batches: 1600,
-        },
-        wdl::Sequence {
-            first: wdl::ConstantWDL { value: S1_INITIAL_WDL },
-            second: wdl::LinearWDL { start: S1_INITIAL_WDL, end: S1_FINAL_WDL },
-            first_scheduler_final_superbatch: S0_SBS,
-        }
+        lr::LinearDecayLR { initial_lr: S1_INITIAL_LR, final_lr: S1_FINAL_LR, final_superbatch: S1_SBS },
+        wdl::LinearWDL { start: S1_INITIAL_WDL, end: S1_FINAL_WDL }
     );
 
     run_stage!(
@@ -150,12 +165,8 @@ fn main() {
         &data_loader,
         2, // stage id
         S2_SBS,
-        lr::LinearDecayLR {
-            initial_lr: S2_INITIAL_LR,
-            final_lr: S2_FINAL_LR,
-            final_superbatch: S2_SBS,
-        },
-        wdl::ConstantWDL { value: FINETUNE_WDL }
+        lr::LinearDecayLR { initial_lr: S2_INITIAL_LR, final_lr: S2_FINAL_LR, final_superbatch: S2_SBS },
+        wdl::ConstantWDL { value: S2_WDL }
     );
 
     for fen in [

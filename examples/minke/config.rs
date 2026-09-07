@@ -4,7 +4,7 @@ use std::{fs, path::Path};
 use bullet_lib::game::inputs::get_num_buckets;
 
 pub const CHECKPOINT_PATH: &str = "";
-pub const OUTDIR: &str = "checkpoints/minke42/v1";
+pub const OUTDIR: &str = "checkpoints/minke43/v1";
 pub const DATASET_PATH: &str = "data/selfgen/interleaved_12-40.vf";
 
 pub const N_THREADS: usize = 4;
@@ -16,9 +16,21 @@ pub const BATCHES_PER_SUPERBATCH: usize = 6104;
 
 pub const SCALE: f32 = 400.0;
 
-// stage 1
+// stage 0
 pub const S0_SBS: usize = 100;
-pub const S1_SBS: usize = 800;
+pub const S0_WARMUP_SBS: usize = 50;
+pub const S0_COOLDOWN_SBS: usize = 50;
+ 
+pub const S0_WARMUP_INITIAL_LR: f32 = 1e-4;
+pub const S0_WARMUP_FINAL_LR: f32 = 5e-3;
+ 
+pub const S0_COOLDOWN_INITIAL_LR: f32 = 5e-3;
+pub const S0_COOLDOWN_FINAL_LR: f32 = 1e-4;
+
+pub const S0_WDL: f32 = 0.20;
+
+// stage 1
+pub const S1_SBS: usize = 700;
 
 pub const S1_INITIAL_LR: f32 = 1e-3;
 pub const S1_FINAL_LR: f32 = 1e-6;
@@ -32,7 +44,7 @@ pub const S2_SBS: usize = 200;
 pub const S2_INITIAL_LR: f32 = 1e-5;
 pub const S2_FINAL_LR: f32 = 1e-7;
 
-pub const FINETUNE_WDL: f32 = 1.00;
+pub const S2_WDL: f32 = 1.00;
 
 // Quantization
 pub const QA: i16 = 255;
