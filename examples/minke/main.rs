@@ -203,6 +203,9 @@ fn main() {
     };
     trainer.run(&schedule, &settings, &data_loader);
 
+    let data_loader =
+        loader::ViriBinpackLoader::new(TUNE_DATASET_PATH, BUFFER_SIZE_MB, N_THREADS, ViriFilter::Custom(filter));
+
     let finetune_schedule = TrainingSchedule {
         net_id: "minke".to_string(),
         eval_scale: SCALE,
