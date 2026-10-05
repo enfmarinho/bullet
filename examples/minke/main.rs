@@ -187,7 +187,7 @@ fn main() {
         steps: TrainingSteps {
             batch_size: BATCH_SIZE,
             batches_per_superbatch: BATCHES_PER_SUPERBATCH,
-            start_superbatch: START_SB,
+            start_superbatch: 1,
             end_superbatch: END_SECOND_SB,
         },
         wdl_scheduler: wdl::Sequence {
@@ -212,7 +212,7 @@ fn main() {
         steps: TrainingSteps {
             batch_size: BATCH_SIZE,
             batches_per_superbatch: BATCHES_PER_SUPERBATCH,
-            start_superbatch: END_SECOND_SB + 1,
+            start_superbatch: 1,
             end_superbatch: END_FINETUNE_SB,
         },
         wdl_scheduler: wdl::ConstantWDL { value: FINETUNE_WDL },
