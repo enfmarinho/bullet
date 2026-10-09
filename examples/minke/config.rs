@@ -4,15 +4,16 @@ use std::{fs, path::Path};
 use bullet_lib::game::inputs::get_num_buckets;
 
 pub const CHECKPOINT_PATH: &str = "";
-pub const OUTDIR: &str = "checkpoints/minke43/v3";
-pub const DATASET_PATH: &str = "data/selfgen/interleaved_12-40.vf";
-pub const TUNE_DATASET_PATH: &str = "data/selfgen/interleaved_23-40.vf";
+pub const OUTDIR: &str = "checkpoints/minke43/v4";
+pub const DATASET_PATH: &str = "data/selfgen/relabeled_tb6_12-40.vf";
+pub const TUNE_DATASET_PATH: &str = "data/selfgen/relabeled_tb6_23-40.vf";
 pub const N_THREADS: usize = 4;
 pub const BUFFER_SIZE_MB: usize = 2048;
 
+pub const START_SB: usize = 1;
 pub const END_FIRST_SB: usize = 100;
 pub const END_SECOND_SB: usize = 800;
-pub const END_FINETUNE_SB: usize = 200;
+pub const END_FINETUNE_SB: usize = 1000;
 
 pub const BATCH_SIZE: usize = 16_384;
 pub const BATCHES_PER_SUPERBATCH: usize = 6104;
@@ -40,7 +41,7 @@ pub const I8_RANGE: f32 = i8::MAX as f32 / QB as f32;
 pub const L1_RANGE: f32 = I8_RANGE * L1_SHIFT_SCALE * L1_SHIFT_SCALE;
 
 // arch
-pub const L1_SIZE: usize = 1536;
+pub const L1_SIZE: usize = 1280;
 pub const L2_SIZE: usize = 16;
 pub const L3_SIZE: usize = 32;
 

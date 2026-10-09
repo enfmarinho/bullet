@@ -3,21 +3,21 @@ mod config;
 use bullet_lib::{
     game::{inputs::ChessBucketsMirrored, outputs::MaterialCount},
     nn::{
-        optimiser::{AdamW, AdamWParams},
         InitSettings, Shape,
+        optimiser::{AdamW, AdamWParams},
     },
     trainer::{
         save::SavedFormat,
-        schedule::{lr, wdl, TrainingSchedule, TrainingSteps},
+        schedule::{TrainingSchedule, TrainingSteps, lr, wdl},
         settings::LocalSettings,
     },
     value::{
-        loader::{self, ViriFilter},
         ValueTrainerBuilder,
+        loader::{self, ViriFilter},
     },
 };
 use config::*;
-use rand::{rng, Rng};
+use rand::{Rng, rng};
 use std::cell::{Cell, RefCell};
 use viriformat::{
     chess::{board::Board, chessmove::Move},
@@ -187,7 +187,7 @@ fn main() {
         steps: TrainingSteps {
             batch_size: BATCH_SIZE,
             batches_per_superbatch: BATCHES_PER_SUPERBATCH,
-            start_superbatch: 1,
+            start_superbatch: START_SB,
             end_superbatch: END_SECOND_SB,
         },
         wdl_scheduler: wdl::Sequence {
@@ -212,7 +212,7 @@ fn main() {
         steps: TrainingSteps {
             batch_size: BATCH_SIZE,
             batches_per_superbatch: BATCHES_PER_SUPERBATCH,
-            start_superbatch: 1,
+            start_superbatch: END_SECOND_SB + 1,
             end_superbatch: END_FINETUNE_SB,
         },
         wdl_scheduler: wdl::ConstantWDL { value: FINETUNE_WDL },
