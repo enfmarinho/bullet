@@ -4,15 +4,16 @@ use std::{fs, path::Path};
 use bullet_lib::game::inputs::get_num_buckets;
 
 pub const CHECKPOINT_PATH: &str = "";
-pub const OUTDIR: &str = "checkpoints/minke45/v1";
-pub const DATASET_PATH: &str = "data/selfgen/relabeled_tb6_12-42.vf";
-pub const TUNE_DATASET_PATH: &str = "data/selfgen/relabeled_tb6_33-42.vf";
+pub const OUTDIR: &str = "checkpoints/minke45/v2";
+pub const DATASET_PATH: &str = "data/selfgen/relabeled_tb6_minke44_12-42.vf";
+pub const TUNE_DATASET_PATH: &str = "data/selfgen/relabeled_tb6_minke44_33-42.vf";
 pub const N_THREADS: usize = 4;
 pub const BUFFER_SIZE_MB: usize = 2048;
 
-pub const WARMUP_SBS: usize = 100;
-pub const TRAIN_SBS: usize = 800;
-pub const FINETUNE_SBS: usize = 200;
+pub const START_SB: usize = 1;
+pub const END_FIRST_SB: usize = 100;
+pub const END_SECOND_SB: usize = 800;
+pub const END_FINETUNE_SB: usize = 1000;
 
 pub const BATCH_SIZE: usize = 16_384;
 pub const BATCHES_PER_SUPERBATCH: usize = 6104;
