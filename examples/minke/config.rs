@@ -4,7 +4,7 @@ use std::{fs, path::Path};
 use bullet_lib::game::inputs::get_num_buckets;
 
 pub const CHECKPOINT_PATH: &str = "";
-pub const OUTDIR: &str = "checkpoints/minke45/v3";
+pub const OUTDIR: &str = "checkpoints/minke45/v4";
 pub const DATASET_PATH: &str = "data/selfgen/relabeled_tb6_23-42.vf";
 pub const TUNE_DATASET_PATH: &str = "data/selfgen/relabeled_tb6_33-42.vf";
 pub const N_THREADS: usize = 4;
@@ -25,7 +25,7 @@ pub const FINETUNE_INITIAL_LR: f32 = 1e-5;
 pub const FINETUNE_FINAL_LR: f32 = 1e-7;
 
 pub const INITIAL_WDL: f32 = 0.20;
-pub const FINAL_WDL: f32 = 0.40;
+pub const FINAL_WDL: f32 = 0.50;
 pub const FINETUNE_WDL: f32 = 1.00;
 
 pub const SCALE: f32 = 400.0;
